@@ -1,2 +1,17 @@
-# RAG-Driven-LLM-Multi-Functional-Agent-System
-Developed a distributed LLM-driven B2B ChatBot and B2C AI Agent system using Cloudflare Workers and LangChain. This system implemented RAG technology and dynamic task handling tools to manage real-time user interactions, enabling users to make inquiries and complete reservations through intelligent agent interactions.
+### Creating Properties Index
+
+
+```shell
+CLOUDFLARE_ACCOUNT_ID=<acount_id> wrangler vectorize create b2c-ai-store --dimensions=1536 --metric=cosine
+```
+
+
+### First time setup for B2C AI
+
+
+Create D1 databases needed
+```shell
+## https://developers.cloudflare.com/d1/get-started/#6-deploy-your-database
+wrangler d1 execute ai-db --remote --file=./src/db/b2c_session.sql
+```
+
