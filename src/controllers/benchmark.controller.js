@@ -56,7 +56,7 @@ export const BenchmarkController =async ({content, connection}, env)=> {
 		 llm = new ChatGoogleGenerativeAI({
 			model: "gemini-1.5-pro",
 			temperature: 0.2,
-			apiKey: "AIzaSyCYidp1B-BoPx5gronytL1_8W2oGwFFZxA",
+			apiKey: ,
 
 		});
 	}else if(content.llm === 'gemini-ai-gateway'){
@@ -64,7 +64,7 @@ export const BenchmarkController =async ({content, connection}, env)=> {
 		llm = new ChatGoogleGenerativeAI({
 			model: "gemini-1.5-pro",
 			temperature: 0.2,
-			apiKey: "AIzaSyCYidp1B-BoPx5gronytL1_8W2oGwFFZxA",
+			apiKey: ,
 			baseUrl: `https://gateway.ai.cloudflare.com/v1/5ff5e53470602f594510405e2e07a620/downing-students/google-ai-studio`,
 
 		});
