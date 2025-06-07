@@ -1,0 +1,161 @@
+# Node.js with webpack
+# Build a Node.js project using the webpack CLI.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+stages:
+- stage: Build
+  pool:
+    vmImage: ubuntu-latest
+  jobs:
+  - job: Build
+    steps:
+    - task: ArchiveFiles@2
+      displayName: 'Archive index.js'
+      inputs:
+        rootFolderOrFile: 'src/index.js'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: false
+
+    - task: ArchiveFiles@2
+      displayName: 'Archive controllers folder'
+      inputs:
+        rootFolderOrFile: 'src'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: false
+
+    - task: ArchiveFiles@2
+      displayName: 'Archive package.json'
+      inputs:
+        rootFolderOrFile: 'package.json'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: false
+    - task: ArchiveFiles@2
+      displayName: 'Archive package-lock.json'
+      inputs:
+        rootFolderOrFile: 'package-lock.json'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: false
+
+    - task: ArchiveFiles@2
+      displayName: 'Archive wrangler.toml'
+      inputs:
+        rootFolderOrFile: 'wrangler.toml'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+        replaceExistingArchive: false
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Pipeline.Workspace)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+
+
+- stage: DEV_Deploy
+  dependsOn: Build
+  condition: eq(variables['Build.SourceBranchName'], 'development')
+  pool:
+    vmImage: ubuntu-latest
+  jobs:
+  - deployment: DEV_deploy
+    environment: 'CF Development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: NodeTool@0
+            inputs:
+              versionSource: 'spec'
+              versionSpec: '18.x'
+          - task: ExtractFiles@1
+            displayName: 'Extract files '
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/**/*.zip'
+              destinationFolder: '$(Pipeline.Workspace)/temp/'
+              cleanDestinationFolder: true
+
+          - task: CmdLine@2
+            inputs:
+              script: |
+                cd $(Pipeline.Workspace)/temp
+                npm install -g wrangler --unsafe-perm=true --allow-root
+                wrangler --version
+                npm install
+                echo wrangler
+                CLOUDFLARE_ACCOUNT_ID=$(CF_ACCOUNT_ID_DEVELOPMENT) CLOUDFLARE_API_TOKEN=$(CF_TOKEN_DEVELOPMENT) wrangler deploy --env development
+
+- stage: Staging_Deploy
+  dependsOn: Build
+  condition: eq(variables['Build.SourceBranchName'], 'master')
+  pool:
+    vmImage: ubuntu-latest
+  jobs:
+  - deployment: Staging_deploy
+    environment: 'CF Staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: NodeTool@0
+            inputs:
+              versionSource: 'spec'
+              versionSpec: '18.x'
+          - task: ExtractFiles@1
+            displayName: 'Extract files '
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/**/*.zip'
+              destinationFolder: '$(Pipeline.Workspace)/temp/'
+              cleanDestinationFolder: true
+
+          - task: CmdLine@2
+            inputs:
+              script: |
+                cd $(Pipeline.Workspace)/temp
+                npm install -g wrangler --unsafe-perm=true --allow-root
+                wrangler --version
+                npm install
+                echo wrangler
+                CLOUDFLARE_ACCOUNT_ID=$(CF_ACCOUNT_ID) CLOUDFLARE_API_TOKEN=$(CF_TOKEN) wrangler deploy --env staging
+
+- stage: PROD_Deploy
+  dependsOn: Staging_Deploy
+  condition: and( succeeded('Staging_Deploy'), eq(variables['Build.SourceBranchName'], 'master'))
+  pool:
+    vmImage: ubuntu-latest
+  jobs:
+  - deployment: Prod_deploy
+    environment: 'CF Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: NodeTool@0
+            inputs:
+              versionSource: 'spec'
+              versionSpec: '18.x'
+
+          - task: ExtractFiles@1
+            displayName: 'Extract files '
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/**/*.zip'
+              destinationFolder: '$(Pipeline.Workspace)/temp/'
+              cleanDestinationFolder: true
+
+          - task: CmdLine@2
+            inputs:
+              script: |
+                cd $(Pipeline.Workspace)/temp
+                npm install -g wrangler --unsafe-perm=true --allow-root
+                npm install
+                echo wrangler
+                CLOUDFLARE_ACCOUNT_ID=$(CF_ACCOUNT_ID) CLOUDFLARE_API_TOKEN=$(CF_TOKEN) wrangler deploy --env production
